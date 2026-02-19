@@ -51,7 +51,7 @@ As the load approaches capacity, the cost shoots up, forcing the algorithm to fi
 * `Network.java`: Manages the graph of routers.
 * `Router.java`: Represents a node with coordinates (X, Y).
 * `Line.java`: Represents an edge with Capacity, Delay, and Load.
-* `RoutingTests.java` / `StressTests.java`: JUnit test suites.
+* `RoutingTests.java`: JUnit test suites.
 
 ## 🧪 Testing
 The project includes comprehensive Unit Tests and Stress Tests covering:
@@ -64,3 +64,4 @@ To run tests, execute the JUnit classes located in the `src/test` directory.
 
 ## 👤 Author
 **Omer Rahamim** - [GitHub Profile](https://github.com/omergit123)
+
