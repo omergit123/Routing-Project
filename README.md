@@ -51,6 +51,8 @@ As the load approaches capacity, the cost shoots up, forcing the algorithm to fi
 * `Network.java`: Manages the graph of routers.
 * `Router.java`: Represents a node with coordinates (X, Y).
 * `Line.java`: Represents an edge with Capacity, Delay, and Load.
+* `PredecessorAndDistance.java`: Used for path finding in Dijkstra algorithm.
+* `RoutingAlgorithm.java`: interface for each routhing algorithm we will use now or in the future.
 * `RoutingTests.java`: JUnit test suites.
 
 ## 🧪 Testing
@@ -64,5 +66,6 @@ To run tests, execute the JUnit classes located in the `src/test` directory.
 
 ## 👤 Author
 **Omer Rahamim** - [GitHub Profile](https://github.com/omergit123)
+
 
 
