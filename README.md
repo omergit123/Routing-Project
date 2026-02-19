@@ -24,7 +24,7 @@ As the load approaches capacity, the cost shoots up, forcing the algorithm to fi
 
 ### Prerequisites
 * Java JDK 8 or higher.
-* IntelliJ IDEA / Eclipse (Recommended).
+* IntelliJ IDEA (Recommended).
 
 ### Steps
 1.  **Clone the repository:**
@@ -64,4 +64,5 @@ To run tests, execute the JUnit classes located in the `src/test` directory.
 
 ## 👤 Author
 **Omer Rahamim** - [GitHub Profile](https://github.com/omergit123)
+
 
