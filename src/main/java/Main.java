@@ -26,7 +26,7 @@ public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("====== Network Simulation AI Generator (Automated API) ======");
+        System.out.println("====== Network Simulation AI Generator ( Automated API ) ======");
 
         // Load the system instructions from the config file
         String systemInstructions = "";
