@@ -18,8 +18,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import config.*;
 
 public class Main {
-    private static final String API_KEY = System.getenv("GEMINI_API_KEY") != null ? System.getenv("GEMINI_API_KEY")
-            : "AIzaSyB2Bj1Cn5RnZf2mxsxSASIGs4Xvdy47a0s";
+    private static final String API_KEY = System.getenv("GEMINI_API_KEY");
 
     private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
             + API_KEY;
@@ -27,7 +26,7 @@ public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("====== Network Simulation AI Generator (Automated API) ======");
+        System.out.println("====== Network Simulation AI Generator ( Automated API ) ======");
 
         // Load the system instructions from the config file
         String systemInstructions = "";
