@@ -1,0 +1,10 @@
+services:
+  network-simulator:
+    build: .
+    container_name: java-network-ai-sim
+    stdin_open: true
+    tty: true
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./config:/app/config
