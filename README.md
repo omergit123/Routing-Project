@@ -9,7 +9,7 @@ The simulation dynamically integrates with the **Gemini AI API** to generate rea
 * **Smart Routing Algorithm:** A customized implementation of Dijkstra that prioritizes paths based on a dynamic traffic and load formula.
 * **Congestion Control:** The system identifies bottlenecks and avoids paths where `Load > Capacity`.
 * **Containerized Environment:** Fully dockerized setup using Multi-stage builds, separate JRE runtimes, and Docker Compose orchestration.
-* **Performance:** Utilizes `PriorityQueue` for efficient pathfinding ($O(E \log V)$).
+* **Performance:** Utilizes `PriorityQueue` for efficient pathfinding O(E \log V).
 * **Robust JSON Processing:** Utilizes Jackson (with automated filtering features) to ensure resilient schema binding against AI response anomalies.
 
 ## 🧠 How It Works
