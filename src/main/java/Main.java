@@ -1,5 +1,4 @@
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -7,9 +6,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Scanner;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,8 +20,9 @@ import config.*;
 
 public class Main {
     private static final String API_KEY = System.getenv("GEMINI_API_KEY");
+    private static final Random RANDOM = new Random();
 
-    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key="
             + API_KEY;
 
     public static void main(String[] args) {
@@ -35,25 +37,36 @@ public class Main {
         } catch (IOException e) {
             System.err.println("❌ Critical Error: Could not load config/system_prompt.txt");
             System.err.println("Please ensure the prompt file exists in the config directory.");
+            scanner.close();
             return;
         }
 
-        System.out.print("Describe the network topology and streams you want to test:\n> ");
-        String userPrompt = scanner.nextLine();
+        System.out
+                .print("Generate a new network with Gemini API or a local random generator? (api/local) [local]:\n> ");
+        String generationMode = scanner.nextLine().trim().toLowerCase();
+        boolean useApi = generationMode.equals("api");
 
-        System.out.println("\nSending request to Gemini AI via API...");
+        if (useApi && (API_KEY == null || API_KEY.isBlank())) {
+            System.out.println("\nNo Gemini API key found. Falling back to local random generation.");
+            useApi = false;
+        }
 
         try {
-            /*
-             * The API call returns a response that includes the generated text
-             * containing the JSON configurations for topology and streams,
-             * delimited by specific tags.
-             */
-            String aiResponse = callGeminiAPI(userPrompt, systemInstructions);
+            if (!useApi) {
+                System.out.println("\nGenerating a new random network and streams locally...");
+                int routerCount = promptForInt(scanner, "Enter router count [15]: ", 15);
+                int streamCount = promptForInt(scanner, "Enter stream count [30]: ", 30);
+                generateRandomNetworkAndTraffic(routerCount, streamCount);
+            } else {
+                System.out.print("Describe the network topology and streams you want to test:\n> ");
+                String userPrompt = scanner.nextLine();
+                System.out.println("\nSending request to Gemini AI via API...");
+                String aiResponse = callGeminiAPI(userPrompt, systemInstructions);
 
-            // Saving the AI response in json files.
-            extractAndSaveJson(aiResponse);
-            System.out.println("⚡ JSON Configuration files created successfully via API.");
+                // Saving the AI response in json files.
+                extractAndSaveJson(aiResponse);
+                System.out.println("⚡ JSON Configuration files created successfully via API.");
+            }
             System.out.println("🚀 Starting network simulation...\n");
 
             // =======================================================
@@ -107,6 +120,8 @@ public class Main {
         } catch (Exception e) {
             System.err.println("\n❌ An error occurred during API call or simulation:");
             e.printStackTrace();
+        } finally {
+            scanner.close();
         }
     }
 
@@ -151,22 +166,37 @@ public class Main {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonRequestBody))
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        // --- Exponential Backoff Logic ---
+        int maxRetries = 3;
+        int baseDelayMs = 2000;
 
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("API returned error: " + response.statusCode());
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                // Success - parse JSON and return
+                JsonNode rootNode = mapper.readTree(response.body());
+                return rootNode.path("candidates")
+                        .path(0)
+                        .path("content")
+                        .path("parts")
+                        .path(0)
+                        .path("text")
+                        .asText();
+
+            } else if (response.statusCode() == 429 && attempt < maxRetries) {
+                // Rate Limit hit - wait and retry
+                int sleepTime = baseDelayMs * (int) Math.pow(2, attempt);
+                System.out.println("API Error 429 (Rate Limit). Retrying in " + sleepTime + "ms...");
+                Thread.sleep(sleepTime);
+
+            } else {
+                // Other errors (e.g., 400, 500) or ran out of retries
+                throw new RuntimeException("API returned error: " + response.statusCode() + " - " + response.body());
+            }
         }
 
-        JsonNode rootNode = mapper.readTree(response.body());
-        String aiTextOutput = rootNode.path("candidates")
-                .path(0)
-                .path("content")
-                .path("parts")
-                .path(0)
-                .path("text")
-                .asText();
-
-        return aiTextOutput;
+        throw new RuntimeException("Failed to call Gemini API after " + maxRetries + " retries.");
     }
 
     // Extracts the JSON content between specified tags and saves it to a file
@@ -239,5 +269,82 @@ public class Main {
             }
             currentId = predecessor.getId();
         }
+    }
+
+    private static int promptForInt(Scanner scanner, String prompt, int defaultValue) {
+        System.out.print(prompt);
+        String line = scanner.nextLine().trim();
+        if (line.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(line);
+        } catch (NumberFormatException ex) {
+            System.out.println("Invalid number, using default: " + defaultValue);
+            return defaultValue;
+        }
+    }
+
+    private static void generateRandomNetworkAndTraffic(int routerCount, int streamCount) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        File configDir = new File("config");
+        if (!configDir.exists()) {
+            configDir.mkdirs();
+        }
+
+        List<Object> routers = new ArrayList<>();
+        List<Object> links = new ArrayList<>();
+        List<Object> streams = new ArrayList<>();
+
+        for (int i = 1; i <= routerCount; i++) {
+            routers.add(Map.of(
+                    "id", "R" + i,
+                    "x", RANDOM.nextDouble() * 100,
+                    "y", RANDOM.nextDouble() * 100));
+        }
+
+        // Create a connected backbone first
+        for (int i = 1; i < routerCount; i++) {
+            links.add(Map.of(
+                    "source", "R" + i,
+                    "target", "R" + (i + 1),
+                    "capacity_mbps", 100 + RANDOM.nextInt(201)));
+        }
+
+        // Add random extra medium-capacity links
+        int extraLinks = Math.max(routerCount, routerCount / 2);
+        for (int i = 0; i < extraLinks; i++) {
+            int source = RANDOM.nextInt(routerCount) + 1;
+            int target = RANDOM.nextInt(routerCount) + 1;
+            if (source == target) {
+                target = (source % routerCount) + 1;
+            }
+            links.add(Map.of(
+                    "source", "R" + source,
+                    "target", "R" + target,
+                    "capacity_mbps", 120 + RANDOM.nextInt(181)));
+        }
+
+        for (int i = 1; i <= streamCount; i++) {
+            int source = RANDOM.nextInt(routerCount) + 1;
+            int destination = RANDOM.nextInt(routerCount) + 1;
+            while (destination == source) {
+                destination = RANDOM.nextInt(routerCount) + 1;
+            }
+            streams.add(Map.of(
+                    "stream_id", "S" + i,
+                    "source", "R" + source,
+                    "destination", "R" + destination,
+                    "size_mb", 1 + RANDOM.nextDouble() * 4));
+        }
+
+        Map<String, Object> topology = Map.of("topology", Map.of("routers", routers, "links", links));
+        Map<String, Object> traffic = Map.of("streams", streams);
+
+        Files.writeString(Paths.get("config/topology.json"), mapper.writeValueAsString(topology));
+        Files.writeString(Paths.get("config/streams.json"), mapper.writeValueAsString(traffic));
+        System.out.println("⚡ Random topology and streams created in config/topology.json and config/streams.json");
     }
 }
